@@ -83,15 +83,34 @@
     <div id="humanVerification" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
         <div class="text-center">
             <!-- 加载动画 -->
-            <div class="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full loader-spin mx-auto mb-6"></div>
+            <div id="verificationLoader" class="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full loader-spin mx-auto mb-6 hidden"></div>
             
-            <!-- 验证文字 -->
-            <h2 class="text-2xl font-bold text-dark mb-2">正在验证是否是人类</h2>
-            <p class="text-gray-500">请稍候，验证完成后将自动进入计算器</p>
+            <!-- 自动验证文字 -->
+            <div id="autoVerificationText" class="hidden">
+                <h2 class="text-2xl font-bold text-dark mb-2">正在验证是否是人类</h2>
+                <p class="text-gray-500">请稍候，验证完成后将自动进入计算器</p>
+                
+                <!-- 进度提示 -->
+                <div class="mt-8 w-64 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div id="verificationProgress" class="h-full bg-primary w-0 transition-all duration-1000"></div>
+                </div>
+            </div>
             
-            <!-- 进度提示 -->
-            <div class="mt-8 w-64 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div id="verificationProgress" class="h-full bg-primary w-0 transition-all duration-1000"></div>
+            <!-- 点击验证文字 -->
+            <div id="clickVerificationText" class="hidden">
+                <h2 class="text-2xl font-bold text-dark mb-2">请完成人机验证</h2>
+                <p class="text-gray-500 mb-6">点击下方按钮验证您不是机器人</p>
+                
+                <!-- 验证按钮 -->
+                <button id="verifyBtn" onclick="startClickVerification()" class="px-8 py-3 gradient-bg text-white rounded-lg btn-hover">
+                    点击验证
+                </button>
+                
+                <!-- 点击验证后的加载状态 -->
+                <div id="clickLoadingState" class="hidden mt-6">
+                    <div class="w-10 h-10 border-3 border-primary/20 border-t-primary rounded-full loader-spin mx-auto mb-3"></div>
+                    <p class="text-gray-500" id="loadingText">验证中... 3秒后进入</p>
+                </div>
             </div>
         </div>
 
@@ -250,9 +269,31 @@
     </div>
 
     <script>
+        // 全局变量
+        let verificationType = ''; // auto 或 click
+        const verificationLayer = document.getElementById('humanVerification');
+        
         // 人机验证逻辑
         document.addEventListener('DOMContentLoaded', function() {
-            const verificationLayer = document.getElementById('humanVerification');
+            // 随机选择验证方式 (50% 概率)
+            verificationType = Math.random() > 0.5 ? 'auto' : 'click';
+            
+            const autoText = document.getElementById('autoVerificationText');
+            const clickText = document.getElementById('clickVerificationText');
+            const verificationLoader = document.getElementById('verificationLoader');
+            
+            // 根据随机结果显示对应的验证界面
+            if (verificationType === 'auto') {
+                autoText.classList.remove('hidden');
+                verificationLoader.classList.remove('hidden');
+                startAutoVerification();
+            } else {
+                clickText.classList.remove('hidden');
+            }
+        });
+        
+        // 自动验证流程
+        function startAutoVerification() {
             const progressBar = document.getElementById('verificationProgress');
             
             // 模拟验证进度
@@ -270,15 +311,43 @@
             
             // 2.5秒后完成验证，隐藏加载层
             setTimeout(() => {
-                verificationLayer.classList.add('fade-out');
-                // 确保动画完成后完全移除
-                setTimeout(() => {
-                    verificationLayer.style.display = 'none';
-                }, 500);
+                completeVerification();
             }, 2500);
-        });
+        }
+        
+        // 点击验证流程
+        function startClickVerification() {
+            const verifyBtn = document.getElementById('verifyBtn');
+            const clickLoadingState = document.getElementById('clickLoadingState');
+            const loadingText = document.getElementById('loadingText');
+            
+            // 隐藏按钮，显示加载状态
+            verifyBtn.classList.add('hidden');
+            clickLoadingState.classList.remove('hidden');
+            
+            // 倒计时3秒
+            let countdown = 3;
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                loadingText.textContent = `验证中... ${countdown}秒后进入`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    completeVerification();
+                }
+            }, 1000);
+        }
+        
+        // 完成验证，进入计算器
+        function completeVerification() {
+            verificationLayer.classList.add('fade-out');
+            // 确保动画完成后完全移除
+            setTimeout(() => {
+                verificationLayer.style.display = 'none';
+            }, 500);
+        }
 
-        // 全局变量
+        // 计算器核心逻辑
         let currentValue = '0';
         let calculation = '';
         let history = JSON.parse(localStorage.getItem('calculatorHistory')) || [];
@@ -462,4 +531,3 @@
     </script>
 </body>
 </html>
-
