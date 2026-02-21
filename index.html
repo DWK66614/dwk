@@ -49,6 +49,12 @@
             .modal-slide-in {
                 animation: modalSlideIn 0.3s ease-out;
             }
+            .loader-spin {
+                animation: spin 1s linear infinite;
+            }
+            .fade-out {
+                animation: fadeOut 0.5s ease-out forwards;
+            }
             @keyframes fadeIn {
                 from { opacity: 0; transform: translateY(10px); }
                 to { opacity: 1; transform: translateY(0); }
@@ -61,10 +67,35 @@
                 from { opacity: 0; transform: translateY(20px) scale(0.95); }
                 to { opacity: 1; transform: translateY(0) scale(1); }
             }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; visibility: hidden; }
+            }
         }
     </style>
 </head>
 <body class="font-inter bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <!-- 人机验证加载层 -->
+    <div id="humanVerification" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="text-center">
+            <!-- 加载动画 -->
+            <div class="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full loader-spin mx-auto mb-6"></div>
+            
+            <!-- 验证文字 -->
+            <h2 class="text-2xl font-bold text-dark mb-2">正在验证是否是人类</h2>
+            <p class="text-gray-500">请稍候，验证完成后将自动进入计算器</p>
+            
+            <!-- 进度提示 -->
+            <div class="mt-8 w-64 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div id="verificationProgress" class="h-full bg-primary w-0 transition-all duration-1000"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- 自定义确认弹窗 -->
     <div id="confirmModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-fade-in px-4">
         <div class="bg-white rounded-2xl w-full max-w-md calc-shadow modal-slide-in overflow-hidden">
@@ -212,6 +243,34 @@
     </div>
 
     <script>
+        // 人机验证逻辑
+        document.addEventListener('DOMContentLoaded', function() {
+            const verificationLayer = document.getElementById('humanVerification');
+            const progressBar = document.getElementById('verificationProgress');
+            
+            // 模拟验证进度
+            setTimeout(() => {
+                progressBar.style.width = '30%';
+            }, 500);
+            
+            setTimeout(() => {
+                progressBar.style.width = '70%';
+            }, 1500);
+            
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+            }, 2000);
+            
+            // 2.5秒后完成验证，隐藏加载层
+            setTimeout(() => {
+                verificationLayer.classList.add('fade-out');
+                // 确保动画完成后完全移除
+                setTimeout(() => {
+                    verificationLayer.style.display = 'none';
+                }, 500);
+            }, 2500);
+        });
+
         // 全局变量
         let currentValue = '0';
         let calculation = '';
