@@ -55,6 +55,9 @@
             .fade-out {
                 animation: fadeOut 0.5s ease-out forwards;
             }
+            .shake {
+                animation: shake 0.5s ease-in-out;
+            }
             @keyframes fadeIn {
                 from { opacity: 0; transform: translateY(10px); }
                 to { opacity: 1; transform: translateY(0); }
@@ -74,6 +77,11 @@
             @keyframes fadeOut {
                 from { opacity: 1; }
                 to { opacity: 0; visibility: hidden; }
+            }
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-8px); }
+                75% { transform: translateX(8px); }
             }
         }
     </style>
@@ -99,10 +107,14 @@
             <!-- 点击验证文字 -->
             <div id="clickVerificationText" class="hidden">
                 <h2 class="text-2xl font-bold text-dark mb-2">请完成人机验证</h2>
-                <p class="text-gray-500 mb-6">点击下方按钮验证您不是机器人</p>
+                <p class="text-gray-500 mb-3" id="verificationTip">移动鼠标后点击下方按钮验证您不是机器人</p>
+                <!-- 验证失败提示 -->
+                <p id="verificationError" class="text-red-500 mb-4 hidden">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>验证失败！鼠标移动轨迹过于规律，请自然移动鼠标后重试
+                </p>
                 
                 <!-- 验证按钮 -->
-                <button id="verifyBtn" onclick="startClickVerification()" class="px-8 py-3 gradient-bg text-white rounded-lg btn-hover">
+                <button id="verifyBtn" onclick="checkMouseTrackAndVerify()" class="px-8 py-3 gradient-bg text-white rounded-lg btn-hover">
                     点击验证
                 </button>
                 
@@ -272,6 +284,10 @@
         // 全局变量
         let verificationType = ''; // auto 或 click
         const verificationLayer = document.getElementById('humanVerification');
+        // 鼠标轨迹相关变量
+        let mouseTrack = [];
+        const MIN_POINTS = 5; // 最少需要记录的轨迹点
+        const MAX_DEVIATION_RATIO = 0.1; // 最大偏离比例（越小越严格）
         
         // 人机验证逻辑
         document.addEventListener('DOMContentLoaded', function() {
@@ -289,8 +305,107 @@
                 startAutoVerification();
             } else {
                 clickText.classList.remove('hidden');
+                // 开始监听鼠标轨迹
+                startTrackingMouse();
             }
         });
+        
+        // 开始跟踪鼠标轨迹
+        function startTrackingMouse() {
+            // 清空之前的轨迹
+            mouseTrack = [];
+            
+            // 监听验证区域的鼠标移动事件
+            verificationLayer.addEventListener('mousemove', recordMousePosition);
+            
+            // 防止内存泄漏，验证完成后移除监听
+            const originalCompleteVerification = completeVerification;
+            completeVerification = function() {
+                verificationLayer.removeEventListener('mousemove', recordMousePosition);
+                originalCompleteVerification();
+            };
+        }
+        
+        // 记录鼠标位置
+        function recordMousePosition(e) {
+            // 只记录有效移动（避免重复记录同一位置）
+            const lastPoint = mouseTrack[mouseTrack.length - 1];
+            if (!lastPoint || (Math.abs(e.clientX - lastPoint.x) > 1 || Math.abs(e.clientY - lastPoint.y) > 1)) {
+                mouseTrack.push({
+                    x: e.clientX,
+                    y: e.clientY,
+                    time: Date.now()
+                });
+                
+                // 限制轨迹点数量，避免性能问题
+                if (mouseTrack.length > 100) {
+                    mouseTrack.shift();
+                }
+            }
+        }
+        
+        // 计算鼠标轨迹的直线偏离度
+        function calculateTrackDeviation() {
+            if (mouseTrack.length < MIN_POINTS) return 0;
+            
+            // 获取轨迹的起点和终点
+            const start = mouseTrack[0];
+            const end = mouseTrack[mouseTrack.length - 1];
+            
+            // 计算起点到终点的直线距离
+            const lineDistance = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+            
+            // 如果直线距离太短，直接判定为不通过
+            if (lineDistance < 50) return 0;
+            
+            // 计算实际轨迹长度
+            let actualDistance = 0;
+            for (let i = 1; i < mouseTrack.length; i++) {
+                const p1 = mouseTrack[i-1];
+                const p2 = mouseTrack[i];
+                actualDistance += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+            }
+            
+            // 计算偏离度（实际长度 / 直线长度 - 1）
+            const deviation = (actualDistance / lineDistance) - 1;
+            return deviation;
+        }
+        
+        // 检查鼠标轨迹并验证
+        function checkMouseTrackAndVerify() {
+            const verificationError = document.getElementById('verificationError');
+            const verifyBtn = document.getElementById('verifyBtn');
+            
+            // 隐藏之前的错误提示
+            verificationError.classList.add('hidden');
+            
+            // 1. 检查是否有足够的轨迹点
+            if (mouseTrack.length < MIN_POINTS) {
+                verificationError.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>验证失败！请先移动鼠标后再点击验证按钮';
+                verificationError.classList.remove('hidden');
+                verifyBtn.classList.add('shake');
+                setTimeout(() => verifyBtn.classList.remove('shake'), 500);
+                return;
+            }
+            
+            // 2. 计算轨迹偏离度
+            const deviation = calculateTrackDeviation();
+            
+            // 3. 判断是否通过验证（偏离度大于阈值才是人类操作）
+            if (deviation < MAX_DEVIATION_RATIO) {
+                verificationError.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>验证失败！鼠标移动轨迹过于规律，请自然移动鼠标后重试';
+                verificationError.classList.remove('hidden');
+                verifyBtn.classList.add('shake');
+                setTimeout(() => verifyBtn.classList.remove('shake'), 500);
+                
+                // 清空轨迹，让用户重新移动
+                mouseTrack = [];
+                return;
+            }
+            
+            // 4. 验证通过，开始加载流程
+            startClickVerification();
+        }
         
         // 自动验证流程
         function startAutoVerification() {
