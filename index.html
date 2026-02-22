@@ -362,8 +362,23 @@
         // 初始化历史记录
         renderHistory();
         
-        // 追加值到当前计算
+        // 追加值到当前计算 —— 已修复小数点BUG
         function appendValue(value) {
+            // 如果是小数点，检查当前数字是否已经有小数点
+            if (value === '.') {
+                // 找到最后一个运算符的位置
+                const lastOperatorPos = Math.max(
+                    currentValue.lastIndexOf('+'),
+                    currentValue.lastIndexOf('-'),
+                    currentValue.lastIndexOf('*'),
+                    currentValue.lastIndexOf('/')
+                );
+                // 截取最后一个数字
+                const lastNumber = currentValue.slice(lastOperatorPos + 1);
+                // 如果已经有小数点，直接返回，不允许再输入
+                if (lastNumber.includes('.')) return;
+            }
+
             // 如果当前是0且不是小数点，替换掉0
             if (currentValue === '0' && value !== '.' && !['+', '-', '*', '/', '%'].includes(value)) {
                 currentValue = value;
